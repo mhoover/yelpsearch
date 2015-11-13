@@ -17,14 +17,12 @@ if not os.path.exists('{}/output'.format(wd)):
     os.makedirs('{}/output'.format(wd))
 
 URL = 'https://api.yelp.com/v2'
+DATE = time.strftime('%d%b%Y').lower()
 
 KEY = os.getenv('YELP_KEY')
 KEY_SECRET = os.getenv('YELP_KEY_SECRET')
 TOKEN = os.getenv('YELP_TOKEN')
 TOKEN_SECRET = os.getenv('YELP_TOKEN_SECRET')
-
-START = 0
-DATE = time.strftime('%d%b%Y').lower()
 
 def _get_oauth(url):
     app = oauth2.Consumer(KEY, KEY_SECRET)
@@ -52,9 +50,9 @@ def api_request(url, search_type, term, location, limit=20, offset=0):
     return _get_oauth(url)
 
 
-def make_business_directory(search_type, term, location, nbr_results):
+def make_business_directory(search_type, term, location, nbr_results, start):
     restaurants = defaultdict(list)
-    for i in range(START, nbr_results, 20):
+    for i in range(start, start + nbr_results, 20):
         print 'Getting records {} through {}...'.format(i + 1, i + 20)
         d = api_request(URL, search_type, term, location, 20, i)
 
@@ -76,12 +74,19 @@ def make_business_directory(search_type, term, location, nbr_results):
     restaurants = pd.DataFrame(restaurants)
     restaurants.phone = restaurants.phone.apply(lambda x: re.sub('\+', '\'', x))
 
-    restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
-                       location.lower(), DATE), index=False, encoding='utf-8')
+    if os.path.isfile('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
+                      location.lower(), DATE)):
+        restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
+                           location.lower(), DATE), header=False, index=False, 
+                           mode='a', encoding='utf-8')
+    else:
+        restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
+                           location.lower(), DATE), index=False, 
+                           encoding='utf-8')
 
 
-def run(search_type, term, location, nbr_results):
-    make_business_directory(search_type, term, location, nbr_results)
+def run(search_type, term, location, nbr_results, start):
+    make_business_directory(search_type, term, location, nbr_results, start)
 
 
 if __name__ == '__main__':
@@ -94,7 +99,9 @@ if __name__ == '__main__':
                         help='Location you would like to search on Yelp')
     parser.add_argument('--nbr_results', default=100, type=int, required=False, 
                         help='Number of results desired')
+    parser.add_argument('--start', default=0, type=int, required=False, 
+                        help='Zero-based index start for search results.')
     
     args = parser.parse_args()
 
-    run(args.search_type, args.term, args.location, args.nbr_results)
+    run(args.search_type, args.term, args.location, args.nbr_results, args.start)
