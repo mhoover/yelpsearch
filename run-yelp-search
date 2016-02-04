@@ -26,27 +26,27 @@ TOKEN_SECRET = os.getenv('YELP_TOKEN_SECRET')
 
 def _get_oauth(url):
     app = oauth2.Consumer(KEY, KEY_SECRET)
-    
+
     oa_req = oauth2.Request(method='GET', url=url)
-    oa_req.update({'oauth_nonce': oauth2.generate_nonce(), 
-                   'oauth_timestamp': oauth2.generate_timestamp(), 
+    oa_req.update({'oauth_nonce': oauth2.generate_nonce(),
+                   'oauth_timestamp': oauth2.generate_timestamp(),
                    'oauth_token': TOKEN, 'oauth_consumer_key': KEY})
-    
+
     oa_token = oauth2.Token(TOKEN, TOKEN_SECRET)
-    
-    oa_req.sign_request(oauth2.SignatureMethod_HMAC_SHA1(), 
+
+    oa_req.sign_request(oauth2.SignatureMethod_HMAC_SHA1(),
                         app, oa_token)
     signed_url = oa_req.to_url()
-    
+
     response = json.loads(urllib2.urlopen(signed_url, None).read())
 
     return response
 
 
 def api_request(url, search_type, term, location, limit=20, offset=0):
-    url = '{}/{}?term={}&location={}&limit={}&offset={}'.format(url, 
+    url = '{}/{}?term={}&location={}&limit={}&offset={}'.format(url,
         search_type, term, location, limit, offset)
-        
+
     return _get_oauth(url)
 
 
@@ -64,24 +64,26 @@ def make_business_directory(search_type, term, location, nbr_results, start):
             restaurants['city'].append(biz['location'].get('city', ''))
             restaurants['state'].append(biz['location'].get('state_code', ''))
             restaurants['zip'].append(biz['location'].get('postal_code', ''))
-            restaurants['lat'].append(biz['location']['coordinate'].get('latitude', 
+            restaurants['lat'].append(biz['location']['coordinate'].get('latitude',
                                       ''))
-            restaurants['lon'].append(biz['location']['coordinate'].get('longitude', 
+            restaurants['lon'].append(biz['location']['coordinate'].get('longitude',
                                       ''))
             restaurants['reviews'].append(biz.get('review_count', ''))
             restaurants['yelp_url'].append(biz.get('url', ''))
+            restaurants['type'].append([';'.join(sublist) for sublist in
+                                        biz.get('categories', '')])
 
     restaurants = pd.DataFrame(restaurants)
     restaurants.phone = restaurants.phone.apply(lambda x: re.sub('\+', '\'', x))
 
-    if os.path.isfile('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
+    if os.path.isfile('{}/output/{}_{}_{}.csv'.format(wd, term.lower(),
                       location.lower(), DATE)):
-        restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
-                           location.lower(), DATE), header=False, index=False, 
+        restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(),
+                           location.lower(), DATE), header=False, index=False,
                            mode='a', encoding='utf-8')
     else:
-        restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(), 
-                           location.lower(), DATE), index=False, 
+        restaurants.to_csv('{}/output/{}_{}_{}.csv'.format(wd, term.lower(),
+                           location.lower(), DATE), index=False,
                            encoding='utf-8')
 
 
@@ -91,17 +93,17 @@ def run(search_type, term, location, nbr_results, start):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create directory of Yelp businesses')
-    parser.add_argument('--search_type', choices=['search', 'business'], 
+    parser.add_argument('--search_type', choices=['search', 'business'],
                         help='Search type: search or business')
-    parser.add_argument('--term', required=True, 
+    parser.add_argument('--term', required=True,
                         help='What you are searching Yelp for')
-    parser.add_argument('--location', required=True, 
+    parser.add_argument('--location', required=True,
                         help='Location you would like to search on Yelp')
-    parser.add_argument('--nbr_results', default=100, type=int, required=False, 
+    parser.add_argument('--nbr_results', default=100, type=int, required=False,
                         help='Number of results desired')
-    parser.add_argument('--start', default=0, type=int, required=False, 
+    parser.add_argument('--start', default=0, type=int, required=False,
                         help='Zero-based index start for search results.')
-    
+
     args = parser.parse_args()
 
     run(args.search_type, args.term, args.location, args.nbr_results, args.start)
